@@ -1,0 +1,19 @@
+{
+  "name": "com.carlinhu.animationviewer",
+  "version": "0.0.1",
+  "displayName": "Animation Viewer",
+  "description": "Editor tool for previewing animations in the editor",
+  "unity": "2019.1",
+  "unityRelease": "0b5",
+  "documentationUrl": "",
+  "changelogUrl": "",
+  "licensesUrl": "",
+  "keywords": [
+    "Animation Viewer"
+  ],
+  "author": {
+    "name": "Carlinhu",
+    "email": "carlosconcencio@gmail.com",
+    "url": "https://github.com/carlinhu"
+  }
+}
