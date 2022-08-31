@@ -3,9 +3,9 @@
   "version": "0.0.1",
   "displayName": "Animation Viewer",
   "description": "Editor tool for previewing animations in the editor",
-  "unity": "2019.1",
-  "unityRelease": "0b5",
-  "documentationUrl": "",
+  "unity": "2021.3",
+  "unityRelease": "5f1",
+  "documentationUrl": "https://drive.google.com/file/d/1xoVdXMF8k5ahHWb2c8hPUyp9DQdcxaIs/view",
   "changelogUrl": "",
   "licensesUrl": "",
   "keywords": [

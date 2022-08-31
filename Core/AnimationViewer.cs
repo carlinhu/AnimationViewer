@@ -1,4 +1,6 @@
-using System.Threading.Tasks;
+using System;
+using System.Collections;
+using Unity.EditorCoroutines.Editor;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
@@ -9,14 +11,14 @@ public static class AnimationViewer
 
     private static Animator _animator;
     private static AnimatorController _editorController;
-    private static AnimatorState newState;
+    private static AnimatorState _newState;
 
     private static int _defaultAnimatorControllerLayers;
     private const string _debugStateName = "AnimationViewer State";
     private const string _debugLayerName = "AnimationViewer Layer";
 
-    private static Task task;
-    private static bool _abortTask;
+    private static EditorCoroutine _playAnimationCoroutine;
+    private static bool _pauseAnimation;
 
     #endregion
 
@@ -24,8 +26,10 @@ public static class AnimationViewer
 
     private static void OnPlayModeChanged(PlayModeStateChange state)
     {
-        if (state == PlayModeStateChange.EnteredPlayMode)
-            CancelOperation();
+        if (state != PlayModeStateChange.EnteredPlayMode)
+            return;
+
+        CancelOperation();
     }
 
     public static void InitializeSystem(AnimationClip clip, Animator animator) //Get animator
@@ -34,6 +38,8 @@ public static class AnimationViewer
             return;
 
         EditorApplication.playModeStateChanged += OnPlayModeChanged;
+        EditorApplication.quitting += CancelOperation;
+
         _animator = animator;
 
         if (HasRunningOperation(clip))
@@ -49,10 +55,10 @@ public static class AnimationViewer
     private static RuntimeAnimatorController GetRuntimeController()
     {
         var runtimeAnimator = _animator.runtimeAnimatorController;
-        if (runtimeAnimator.GetType() == typeof(AnimatorOverrideController)) // if it is an override controller we need to get the base controller
+        if (runtimeAnimator.GetType() == typeof(AnimatorOverrideController))
         {
             AnimatorOverrideController overrideController = (AnimatorOverrideController)runtimeAnimator;
-            runtimeAnimator = overrideController.runtimeAnimatorController; // runtimeAnimatorController of an AnimatorOverrideController is the base controller
+            runtimeAnimator = overrideController.runtimeAnimatorController;
         }
 
         return runtimeAnimator;
@@ -60,11 +66,17 @@ public static class AnimationViewer
 
     private static void CreateLayer()
     {
+        for (int i = 0; i < _editorController.layers.Length; i++)
+        {
+            if (_editorController.layers[i].name.Contains(_debugLayerName))
+                return;
+        }
+
         var layer = new AnimatorControllerLayer
         {
             name = _debugLayerName,
             defaultWeight = 1f,
-            stateMachine = new AnimatorStateMachine() // Make sure to create a StateMachine as well, as a default one is not created
+            stateMachine = new AnimatorStateMachine()
         };
 
         _editorController.AddLayer(layer);
@@ -73,10 +85,17 @@ public static class AnimationViewer
     private static void CreateDefaultState(AnimationClip clip)
     {
         AnimatorStateMachine animatorStateMachine = _editorController.layers[_editorController.layers.Length - 1].stateMachine;
-        newState = animatorStateMachine.AddState(_debugStateName);
-        animatorStateMachine.defaultState = newState;
 
-        _editorController.SetStateEffectiveMotion(newState, clip);
+        for (int i = 0; i < animatorStateMachine.states.Length; i++)
+        {
+            if (animatorStateMachine.states[i].state.name.Contains(_debugStateName))
+                return;
+        }
+
+        _newState = animatorStateMachine.AddState(_debugStateName);
+        animatorStateMachine.defaultState = _newState;
+
+        _editorController.SetStateEffectiveMotion(_newState, clip);
         _animator.Update(0);
     }
 
@@ -86,40 +105,78 @@ public static class AnimationViewer
         _defaultAnimatorControllerLayers = _editorController.layers.Length;
     }
 
-    public static void UpdateAnimation(float normalizedTime)
+    private static void UpdateAnimator(float normalizedTime)
     {
         _animator.speed = 0f;
         _animator.Play(_debugStateName, 1, normalizedTime);
         _animator.Update(0);
     }
 
-    public static void PlayAnimation()
+    public static void UpdateAnimation(float normalizedTime)
     {
-        if (task != null)
-        {
-            _abortTask = true;
-            task = null;
+        if (_animator == null)
             return;
-        }
 
-        task = PlayAnimationRoutine();
+        UpdateAnimator(normalizedTime);
     }
 
-    private static async Task PlayAnimationRoutine()
+    public static void UpdateAnimation(int frame, AnimationClip animationClip)
     {
-        _abortTask = false;
+        if (_animator == null || animationClip == null)
+            return;
+
+        float normalizedTime = frame / (animationClip.frameRate * animationClip.length);
+        UpdateAnimator(normalizedTime);
+    }
+
+    public static void PlayAnimation()
+    {
+        if (_playAnimationCoroutine != null)
+        {
+            EditorCoroutineUtility.StopCoroutine(_playAnimationCoroutine);
+        }
+
+        _playAnimationCoroutine = EditorCoroutineUtility.StartCoroutineOwnerless(PlayAnimationRoutine());
+    }
+
+    private static IEnumerator PlayAnimationRoutine()
+    {
+        _pauseAnimation = false;
+
         float timeStep = 0f;
         while (timeStep < 1f)
         {
-            if (_abortTask)
-                break;
+            if (_animator == null)
+                yield break;
+
+            if (_pauseAnimation)
+                yield return null;
 
             _animator.speed = 1f;
             _animator.Play(_debugStateName, 1, timeStep);
-            _animator.Update(0);
-            await Task.Delay(1);
+            _animator.Update(timeStep);
+            yield return new WaitForSecondsRealtime(0.01f);
             timeStep += 0.01f;
         }
+
+        _pauseAnimation = false;
+        _playAnimationCoroutine = null;
+    }
+
+    public static void PauseAnimation()
+    {
+        if (_playAnimationCoroutine == null)
+            return;
+
+        _pauseAnimation = true;
+    }
+
+    public static void ResumeAnimation()
+    {
+        if (_playAnimationCoroutine == null)
+            return;
+
+        _pauseAnimation = false;
     }
 
     public static void CancelOperation()
@@ -127,6 +184,26 @@ public static class AnimationViewer
         if (_editorController == null || _editorController.layers.Length <= _defaultAnimatorControllerLayers)
             return;
 
+        ResetSystem();
+
+        OnOperationEnd?.Invoke();
+    }
+
+    private static bool HasRunningOperation(AnimationClip clip)
+    {
+        if (_editorController != null && _newState != null)
+        {
+            _editorController.SetStateEffectiveMotion(_newState, clip);
+            _animator.Update(0);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private static void ResetSystem()
+    {
         int index = _editorController.layers.Length - 1;
         if (_editorController.layers[index].name != _debugLayerName)
             return;
@@ -135,21 +212,21 @@ public static class AnimationViewer
         _animator.speed = 1f;
         _animator.Update(0);
 
+        _animator = null;
+        _editorController = null;
+        _newState = null;
+        _playAnimationCoroutine = null;
+        _defaultAnimatorControllerLayers = 0;
+
         EditorApplication.playModeStateChanged -= OnPlayModeChanged;
+        EditorApplication.quitting -= CancelOperation;
     }
 
-    private static bool HasRunningOperation(AnimationClip clip)
-    {
-        if (_editorController != null && newState != null)
-        {
-            _editorController.SetStateEffectiveMotion(newState, clip);
-            _animator.Update(0);
+    #endregion
 
-            return true;
-        }
+    #region Events
 
-        return false;
-    }
+    public static event Action OnOperationEnd;
 
     #endregion
 }
