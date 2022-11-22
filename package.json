@@ -1,6 +1,6 @@
 {
   "name": "com.carlinhu.animationviewer",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "displayName": "Animation Viewer",
   "description": "Editor tool for previewing animations in the editor",
   "unity": "2021.3",

@@ -26,7 +26,7 @@ public static class AnimationViewer
 
     private static void OnPlayModeChanged(PlayModeStateChange state)
     {
-        if (state != PlayModeStateChange.EnteredPlayMode)
+        if (state != PlayModeStateChange.ExitingEditMode)
             return;
 
         CancelOperation();
@@ -37,13 +37,13 @@ public static class AnimationViewer
         if (clip == null || animator == null)
             return;
 
-        EditorApplication.playModeStateChanged += OnPlayModeChanged;
-        EditorApplication.quitting += CancelOperation;
-
         _animator = animator;
 
         if (HasRunningOperation(clip))
             return;
+
+        EditorApplication.playModeStateChanged += OnPlayModeChanged;
+        EditorApplication.quitting += CancelOperation;
 
         SaveDependencies(GetRuntimeController());
 
@@ -129,17 +129,20 @@ public static class AnimationViewer
         UpdateAnimator(normalizedTime);
     }
 
-    public static void PlayAnimation()
+    public static void PlayAnimation(AnimationClip clip, Animator animator = null, float speed = 1f)
     {
+        if (_editorController == null)
+            InitializeSystem(clip, animator);
+
         if (_playAnimationCoroutine != null)
         {
             EditorCoroutineUtility.StopCoroutine(_playAnimationCoroutine);
         }
 
-        _playAnimationCoroutine = EditorCoroutineUtility.StartCoroutineOwnerless(PlayAnimationRoutine());
+        _playAnimationCoroutine = EditorCoroutineUtility.StartCoroutineOwnerless(PlayAnimationRoutine(speed));
     }
 
-    private static IEnumerator PlayAnimationRoutine()
+    private static IEnumerator PlayAnimationRoutine(float speed)
     {
         _pauseAnimation = false;
 
@@ -156,7 +159,7 @@ public static class AnimationViewer
             _animator.Play(_debugStateName, 1, timeStep);
             _animator.Update(timeStep);
             yield return new WaitForSecondsRealtime(0.01f);
-            timeStep += 0.01f;
+            timeStep += 0.01f * speed;
         }
 
         _pauseAnimation = false;
