@@ -15,5 +15,8 @@
     "name": "Carlinhu",
     "email": "carlosconcencio@gmail.com",
     "url": "https://github.com/carlinhu"
+  },
+  "dependencies": {
+    "com.unity.feature.development": ""
   }
 }
