@@ -4,9 +4,9 @@
     "references": [
         "GUID:69497e62e963fc846b25cd98cb996225"
     ],
-    "includePlatforms": [
+    "includePlatforms": [],
+    "excludePlatforms": [
         "Android",
-        "Editor",
         "EmbeddedLinux",
         "GameCoreScarlett",
         "GameCoreXboxOne",
@@ -26,7 +26,6 @@
         "WindowsStandalone64",
         "XboxOne"
     ],
-    "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
     "precompiledReferences": [],
