@@ -17,6 +17,6 @@
     "url": "https://github.com/carlinhu"
   },
   "dependencies": {
-    "com.unity.feature.development": ""
+    "com.unity.editorcoroutines": "1.0.0"
   }
 }
