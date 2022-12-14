@@ -6,4 +6,4 @@ Simple Unity tool created to easily preview animations on your scene in editor m
 
 Get it on Unity Package Manager: <b>github.com/carlinhu/AnimationViewer.git<b>
 
-<img src="Images/AnimationViewerDemo.gif"	>
+![Image](https://github.com/carlinhu/Images/blob/main/AnimationViewerDemo.gif)
