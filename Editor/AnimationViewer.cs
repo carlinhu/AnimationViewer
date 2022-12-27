@@ -32,7 +32,7 @@ public static class AnimationViewer
         CancelOperation();
     }
 
-    public static void InitializeSystem(AnimationClip clip, Animator animator) //Get animator
+    public static void InitializeSystem(AnimationClip clip, Animator animator)
     {
         if (clip == null || animator == null)
             return;
